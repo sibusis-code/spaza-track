@@ -153,13 +153,28 @@ async function renderProducts() {
     const qtyCell = document.createElement('td');
     qtyCell.textContent = p.quantity;
     const actCell = document.createElement('td');
-    actCell.innerHTML = `<button class="secondary" data-del="${p.id}">Delete</button>`;
+    actCell.innerHTML = `<input type="number" min="1" max="999" value="1" style="width: 50px; margin-right: 4px;" data-restock-input="${p.id}"><button class="secondary" data-restock="${p.id}" style="margin-right: 4px;">+ Add</button><button class="secondary" data-del="${p.id}">Delete</button>`;
     tr.appendChild(nameCell);
     tr.appendChild(costCell);
     tr.appendChild(sellCell);
     tr.appendChild(qtyCell);
     tr.appendChild(actCell);
     tbody.appendChild(tr);
+  });
+  // Restock handlers (inline, no modal)
+  tbody.querySelectorAll('[data-restock]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const productId = Number(btn.getAttribute('data-restock'));
+      const input = tbody.querySelector(`[data-restock-input="${productId}"]`);
+      const addQty = Number(input.value);
+      if (addQty <= 0) return;
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        await setProductQuantity(product.id, product.quantity + addQty);
+        renderProducts();
+        renderProductsForSale();
+      }
+    });
   });
   // Delete handlers
   tbody.querySelectorAll('[data-del]').forEach(btn => {
