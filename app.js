@@ -121,6 +121,9 @@ function initAuth() {
     err.textContent = '';
     currentRole = 'guest';
     currentEmployeeName = '';
+    // Hide modal on logout
+    const modal = byId('restock-modal');
+    if (modal) modal.classList.add('hidden');
   };
 }
 
@@ -366,6 +369,10 @@ function initApp() {
     return;
   }
   appInitialized = true;
+  // Ensure modal is hidden on first init
+  const modal = byId('restock-modal');
+  if (modal) modal.classList.add('hidden');
+  
   initTabs();
   initProductForm();
   initRestockModal();
