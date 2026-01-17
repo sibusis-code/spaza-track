@@ -7,6 +7,8 @@ const todayKey = () => new Date().toISOString().slice(0,10);
 // Auth / PIN
 let currentRole = 'guest';
 let currentEmployeeName = '';
+let productFilterTerm = '';
+let productFilterTimer = null;
 
 function getEmployeePins() {
   try { 
@@ -142,7 +144,11 @@ async function renderProducts() {
   const products = await listProducts();
   const tbody = byId('products-tbody');
   tbody.innerHTML = '';
-  products.forEach(p => {
+  const term = productFilterTerm.trim().toLowerCase();
+  const sorted = products
+    .filter(p => !term || p.name.toLowerCase().includes(term))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  sorted.forEach(p => {
     const tr = document.createElement('tr');
     const nameCell = document.createElement('td');
     nameCell.textContent = p.name; // Prevent XSS
@@ -190,7 +196,8 @@ async function renderProductsForSale() {
   const products = await listProducts();
   const sel = byId('sale-product');
   sel.innerHTML = '';
-  products.forEach(p => {
+  const sorted = [...products].sort((a, b) => a.name.localeCompare(b.name));
+  sorted.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
     opt.textContent = `${p.name} (qty ${p.quantity})`;
@@ -210,6 +217,20 @@ function initProductForm() {
     e.target.reset();
     renderProducts();
     renderProductsForSale();
+  });
+}
+
+function initProductFilter() {
+  const input = byId('product-filter');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const value = input.value;
+    if (productFilterTimer) clearTimeout(productFilterTimer);
+    productFilterTimer = setTimeout(() => {
+      productFilterTerm = value;
+      renderProducts();
+      renderProductsForSale();
+    }, 120); // small debounce for fast typing
   });
 }
 
@@ -347,6 +368,7 @@ function initApp() {
   
   initTabs();
   initProductForm();
+  initProductFilter();
   initSalesForm();
   initSummary();
   renderProducts();
