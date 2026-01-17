@@ -48,6 +48,9 @@ function configureUIForRole() {
   // Hide profit from employees
   const profitHeader = document.getElementById('profit-header');
   if (profitHeader) profitHeader.classList.toggle('hidden', !isAdmin);
+  // Ensure modal is hidden on init
+  const modal = byId('restock-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function initAuth() {
