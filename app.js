@@ -153,7 +153,7 @@ async function renderProducts() {
     const qtyCell = document.createElement('td');
     qtyCell.textContent = p.quantity;
     const actCell = document.createElement('td');
-    actCell.innerHTML = `<input type="number" min="1" max="999" value="1" style="width: 50px; margin-right: 4px;" data-restock-input="${p.id}"><button class="secondary" data-restock="${p.id}" style="margin-right: 4px;">+ Add</button><button class="secondary" data-del="${p.id}">Delete</button>`;
+    actCell.innerHTML = `<div class="inline-actions"><input class="restock-input" type="number" min="1" max="999" value="1" data-restock-input="${p.id}"><button class="secondary" data-restock="${p.id}">+ Add</button><button class="secondary" data-del="${p.id}">Delete</button></div>`;
     tr.appendChild(nameCell);
     tr.appendChild(costCell);
     tr.appendChild(sellCell);
