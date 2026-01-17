@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spaza Track</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0a7" />
+</head>
+<body>
+  <div id="auth" class="screen">
+    <h1>Spaza Track</h1>
+    <div id="pin-setup" class="card">
+      <h2>Set Admin PIN</h2>
+      <p>First-time setup: choose a 4–6 digit admin PIN.</p>
+      <input type="password" id="new-pin" inputmode="numeric" maxlength="6" placeholder="Enter admin PIN" />
+      <button id="set-pin-btn" class="primary">Set Admin PIN</button>
+    </div>
+    <div id="pin-unlock" class="card">
+      <h2>Unlock</h2>
+      <input type="password" id="pin" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
+      <button id="unlock-btn" class="primary">Unlock</button>
+      <p id="pin-error" class="error" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1>Spaza Track</h1>
+      <nav>
+        <button class="tab-btn" data-tab="products">Products</button>
+        <button class="tab-btn" data-tab="sales">Sales</button>
+        <button class="tab-btn" data-tab="summary">Summary</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="tab-products" class="tab">
+        <h2>Products</h2>
+        <form id="add-product-form" class="card">
+          <label>Name<input id="p-name" required /></label>
+          <label>Cost Price (R)<input id="p-cost" type="number" step="0.01" min="0" required /></label>
+          <label>Selling Price (R)<input id="p-sell" type="number" step="0.01" min="0" required /></label>
+          <label>Quantity<input id="p-qty" type="number" min="0" step="1" max="9999" required /></label>
+          <button class="primary" type="submit">Add Product</button>
+        </form>
+
+        <div class="card">
+          <h3>Stock</h3>
+          <table class="list" aria-label="Product list">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Cost</th>
+                <th>Sell</th>
+                <th>Qty</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="restock-modal" class="modal hidden">
+          <div class="modal-content">
+            <h3 id="restock-title">Restock Item</h3>
+            <label>Add Qty<input id="restock-qty" type="number" min="1" step="1" value="1" /></label>
+            <button id="restock-confirm" class="primary">Add to Stock</button>
+            <button id="restock-cancel" class="secondary">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-sales" class="tab hidden">
+        <h2>Record Sale</h2>
+        <form id="sale-form" class="card">
+          <label>Product<select id="sale-product" required></select></label>
+          <label>Quantity<input id="sale-qty" type="number" min="1" step="1" max="9999" required /></label>
+          <button class="primary" type="submit">Sell</button>
+        </form>
+
+        <div class="card">
+          <h3>Today’s Sales</h3>
+          <table class="list" aria-label="Sales list">
+            <thead>
+              <tr>
+                <th>Seller</th>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Total (R)</th>
+                <th id="profit-header">Profit (R)</th>
+              </tr>
+            </thead>
+            <tbody id="sales-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-summary" class="tab hidden">
+        <h2>Daily Summary</h2>
+        <div class="card">
+          <p id="today-profit" class="profit">Today’s Profit: R0.00</p>
+          <p id="stock-alerts" class="alert"></p>
+          <button id="refresh-summary" class="secondary">Refresh</button>
+        </div>
+        <div id="users-card" class="card hidden">
+          <h3>Manage Employees</h3>
+          <label>Employee Name<input type="text" id="emp-name" placeholder="e.g., John" /></label>
+          <label>Employee PIN<input type="password" id="emp-pin" inputmode="numeric" maxlength="6" placeholder="Enter 4–6 digit PIN" /></label>
+          <button id="add-emp-btn" class="secondary">Add Employee</button>
+          <p id="users-msg" aria-live="polite"></p>
+          <ul id="emp-list"></ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <button id="lock-btn" class="secondary">Lock</button>
+    </footer>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
+      });
+    }
+  </script>
+</body>
+</html>
