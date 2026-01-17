@@ -9,6 +9,8 @@ let currentRole = 'guest';
 let currentEmployeeName = '';
 let productFilterTerm = '';
 let productFilterTimer = null;
+let saleFilterTerm = '';
+let saleFilterTimer = null;
 
 function getEmployeePins() {
   try { 
@@ -195,14 +197,21 @@ async function renderProducts() {
 async function renderProductsForSale() {
   const products = await listProducts();
   const sel = byId('sale-product');
+  const prev = sel.value;
   sel.innerHTML = '';
-  const sorted = [...products].sort((a, b) => a.name.localeCompare(b.name));
+  const term = saleFilterTerm.trim().toLowerCase();
+  const sorted = [...products]
+    .filter(p => !term || p.name.toLowerCase().includes(term))
+    .sort((a, b) => a.name.localeCompare(b.name));
   sorted.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
     opt.textContent = `${p.name} (qty ${p.quantity})`;
     sel.appendChild(opt);
   });
+  if (prev && sel.querySelector(`option[value="${prev}"]`)) {
+    sel.value = prev;
+  }
 }
 
 function initProductForm() {
@@ -231,6 +240,19 @@ function initProductFilter() {
       renderProducts();
       renderProductsForSale();
     }, 120); // small debounce for fast typing
+  });
+}
+
+function initSaleFilter() {
+  const input = byId('sale-filter');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const value = input.value;
+    if (saleFilterTimer) clearTimeout(saleFilterTimer);
+    saleFilterTimer = setTimeout(() => {
+      saleFilterTerm = value;
+      renderProductsForSale();
+    }, 120);
   });
 }
 
@@ -369,6 +391,7 @@ function initApp() {
   initTabs();
   initProductForm();
   initProductFilter();
+  initSaleFilter();
   initSalesForm();
   initSummary();
   renderProducts();
