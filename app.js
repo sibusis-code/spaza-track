@@ -48,9 +48,6 @@ function configureUIForRole() {
   // Hide profit from employees
   const profitHeader = document.getElementById('profit-header');
   if (profitHeader) profitHeader.classList.toggle('hidden', !isAdmin);
-  // Ensure modal is hidden on init
-  const modal = byId('restock-modal');
-  if (modal) modal.classList.add('hidden');
 }
 
 function initAuth() {
@@ -121,9 +118,6 @@ function initAuth() {
     err.textContent = '';
     currentRole = 'guest';
     currentEmployeeName = '';
-    // Hide modal on logout
-    const modal = byId('restock-modal');
-    if (modal) modal.classList.add('hidden');
   };
 }
 
@@ -144,8 +138,6 @@ function initTabs() {
 }
 
 // Products UI
-let restockProductId = null;
-
 async function renderProducts() {
   const products = await listProducts();
   const tbody = byId('products-tbody');
@@ -161,23 +153,13 @@ async function renderProducts() {
     const qtyCell = document.createElement('td');
     qtyCell.textContent = p.quantity;
     const actCell = document.createElement('td');
-    actCell.innerHTML = `<button class="secondary" data-restock="${p.id}" style="margin-right: 4px;">Restock</button><button class="secondary" data-del="${p.id}">Delete</button>`;
+    actCell.innerHTML = `<button class="secondary" data-del="${p.id}">Delete</button>`;
     tr.appendChild(nameCell);
     tr.appendChild(costCell);
     tr.appendChild(sellCell);
     tr.appendChild(qtyCell);
     tr.appendChild(actCell);
     tbody.appendChild(tr);
-  });
-  // Restock handlers
-  tbody.querySelectorAll('[data-restock]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      restockProductId = Number(btn.getAttribute('data-restock'));
-      const product = products.find(p => p.id === restockProductId);
-      byId('restock-title').textContent = `Restock ${product.name}`;
-      byId('restock-qty').value = '1';
-      byId('restock-modal').classList.remove('hidden');
-    });
   });
   // Delete handlers
   tbody.querySelectorAll('[data-del]').forEach(btn => {
@@ -214,28 +196,6 @@ function initProductForm() {
     renderProducts();
     renderProductsForSale();
   });
-}
-
-function initRestockModal() {
-  const modal = byId('restock-modal');
-  if (!modal) return;
-  
-  byId('restock-confirm').onclick = async () => {
-    const qty = Number(byId('restock-qty').value);
-    if (qty <= 0) return;
-    const products = await listProducts();
-    const product = products.find(p => p.id === restockProductId);
-    if (product) {
-      await setProductQuantity(product.id, product.quantity + qty);
-      modal.classList.add('hidden');
-      renderProducts();
-      renderProductsForSale();
-    }
-  };
-
-  byId('restock-cancel').onclick = () => {
-    modal.classList.add('hidden');
-  };
 }
 
 // Sales UI
@@ -369,13 +329,9 @@ function initApp() {
     return;
   }
   appInitialized = true;
-  // Ensure modal is hidden on first init
-  const modal = byId('restock-modal');
-  if (modal) modal.classList.add('hidden');
   
   initTabs();
   initProductForm();
-  initRestockModal();
   initSalesForm();
   initSummary();
   renderProducts();
