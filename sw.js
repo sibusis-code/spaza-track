@@ -1,11 +1,12 @@
 const CACHE_NAME = 'spaza-cache-v1';
+const BASE_PATH = self.location.pathname.includes('/spaza-track/') ? '/spaza-track' : '';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/db.js',
-  '/manifest.json'
+  BASE_PATH + '/',
+  BASE_PATH + '/index.html',
+  BASE_PATH + '/styles.css',
+  BASE_PATH + '/app.js',
+  BASE_PATH + '/db.js',
+  BASE_PATH + '/manifest.json'
 ];
 self.addEventListener('install', (event) => {
   event.waitUntil(
