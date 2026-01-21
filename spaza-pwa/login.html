@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spaza Track - Login</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    h1 {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border 0.3s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    .btn-secondary {
+      background: #10b981;
+    }
+    .btn-secondary:hover {
+      background: #059669;
+    }
+    .alert {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .alert.show {
+      display: block;
+    }
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    .toggle-form {
+      text-align: center;
+      margin-top: 20px;
+      color: #666;
+    }
+    .toggle-form a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .feature-list {
+      background: #f3f4f6;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .feature-list h3 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+    .feature-list ul {
+      list-style: none;
+      padding: 0;
+    }
+    .feature-list li {
+      padding: 8px 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    .feature-list li:before {
+      content: "✅ ";
+      margin-right: 8px;
+    }
+    .demo-info {
+      background: #fef3c7;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #f59e0b;
+    }
+    .demo-info strong {
+      color: #92400e;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏪 Spaza Track</h1>
+    <p class="subtitle">Multi-Device Sync Enabled</p>
+    
+    <div class="demo-info">
+      <strong>🎯 Demo Credentials:</strong><br>
+      Username: <code>admin</code><br>
+      Password: <code>admin123</code>
+    </div>
+    
+    <div class="alert" id="alert"></div>
+    
+    <!-- Login Form -->
+    <form id="login-form">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="login-username" required value="admin">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" required value="admin123">
+      </div>
+      <button type="submit">🔓 Login</button>
+      <div class="toggle-form">
+        Don't have an account? <a href="#" onclick="toggleForm(); return false;">Register</a>
+      </div>
+    </form>
+    
+    <!-- Register Form -->
+    <form id="register-form" class="hidden">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="reg-fullname" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" required>
+      </div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="reg-username" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" required>
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="reg-role" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+          <option value="employee">Employee</option>
+          <option value="manager">Manager</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-secondary">📝 Register</button>
+      <div class="toggle-form">
+        Already have an account? <a href="#" onclick="toggleForm(); return false;">Login</a>
+      </div>
+    </form>
+    
+    <div class="feature-list">
+      <h3>✨ New Features</h3>
+      <ul>
+        <li>Login from any device</li>
+        <li>Data syncs automatically</li>
+        <li>Activity tracking</li>
+        <li>Works offline + online</li>
+        <li>Secure authentication</li>
+      </ul>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { login, register } from './api-client.js';
+    
+    const API_BASE = 'http://localhost:8000/api';
+    
+    function showAlert(message, type = 'error') {
+      const alert = document.getElementById('alert');
+      alert.textContent = message;
+      alert.className = `alert alert-${type} show`;
+      setTimeout(() => alert.classList.remove('show'), 5000);
+    }
+    
+    // Login
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+      
+      try {
+        const data = await login(username, password);
+        showAlert(`Welcome ${data.user.full_name || data.user.username}!`, 'success');
+        setTimeout(() => {
+          window.location.href = 'app-online.html';
+        }, 1000);
+      } catch (error) {
+        showAlert(error.message || 'Login failed');
+      }
+    });
+    
+    // Register
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fullName = document.getElementById('reg-fullname').value;
+      const email = document.getElementById('reg-email').value;
+      const username = document.getElementById('reg-username').value;
+      const password = document.getElementById('reg-password').value;
+      const role = document.getElementById('reg-role').value;
+      
+      try {
+        const data = await register(username, email, password, fullName, role);
+        showAlert(`Account created! Welcome ${data.user.full_name}!`, 'success');
+        setTimeout(() => {
+          window.location.href = 'app-online.html';
+        }, 1000);
+      } catch (error) {
+        showAlert(error.message || 'Registration failed');
+      }
+    });
+    
+    window.toggleForm = function() {
+      document.getElementById('login-form').classList.toggle('hidden');
+      document.getElementById('register-form').classList.toggle('hidden');
+    };
+  </script>
+</body>
+</html>

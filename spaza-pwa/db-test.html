@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spaza Track - Database Testing</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2rem;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .card h2 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 1.3rem;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 600;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .btn-warning {
+      background: #f59e0b;
+      color: white;
+    }
+    .btn-warning:hover {
+      background: #d97706;
+    }
+    pre {
+      background: #f3f4f6;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .stat-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-box h3 {
+      font-size: 2rem;
+      margin-bottom: 5px;
+    }
+    .stat-box p {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+    .hidden {
+      display: none;
+    }
+    input[type="file"] {
+      padding: 10px;
+      border: 2px dashed #667eea;
+      border-radius: 6px;
+      width: 100%;
+      cursor: pointer;
+    }
+    .alert {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗄️ Spaza Track Database Testing Tool</h1>
+    
+    <div class="card">
+      <h2>📊 Database Statistics</h2>
+      <div class="btn-group">
+        <button class="btn-primary" onclick="loadStats()">🔄 Refresh Stats</button>
+        <button class="btn-warning" onclick="showDataFlow()">📈 Show Data Flow</button>
+      </div>
+      <div id="stats-display"></div>
+    </div>
+    
+    <div class="card">
+      <h2>⚙️ Database Operations</h2>
+      <div class="btn-group">
+        <button class="btn-success" onclick="seedDB()">🌱 Seed Sample Data</button>
+        <button class="btn-primary" onclick="exportDB()">📤 Export Database</button>
+        <button class="btn-warning" onclick="showImportUI()">📥 Import Database</button>
+        <button class="btn-danger" onclick="clearDB()">🗑️ Clear All Data</button>
+      </div>
+      <div id="import-ui" class="hidden">
+        <h3 style="margin: 15px 0 10px 0;">Import Data</h3>
+        <input type="file" id="import-file" accept=".json">
+        <div style="margin-top: 10px;">
+          <label>
+            <input type="checkbox" id="merge-mode"> Merge with existing data (don't clear)
+          </label>
+        </div>
+        <button class="btn-success" onclick="importDB()" style="margin-top: 10px;">Import</button>
+      </div>
+      <div id="operation-result"></div>
+    </div>
+    
+    <div class="card">
+      <h2>🔍 Data Inspection</h2>
+      <div class="btn-group">
+        <button class="btn-primary" onclick="showProducts()">📦 View Products</button>
+        <button class="btn-primary" onclick="showSales()">💰 View Sales</button>
+        <button class="btn-primary" onclick="showFullExport()">📋 Full Export</button>
+      </div>
+      <div id="data-display"></div>
+    </div>
+    
+    <div class="card">
+      <h2>🔗 Cross-App Testing</h2>
+      <div class="alert alert-info">
+        <strong>Testing Tip:</strong> Export the database, open this app in another browser/device, 
+        and import to see how data flows across different instances!
+      </div>
+      <ol style="line-height: 1.8; margin-left: 20px;">
+        <li>Export database using the "Export Database" button above</li>
+        <li>Open this app in another browser tab, window, or device</li>
+        <li>Import the exported JSON file in the other instance</li>
+        <li>Make changes in either instance</li>
+        <li>Export and re-import to sync data</li>
+      </ol>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { 
+      exportDatabase, 
+      importDatabase, 
+      clearDatabase, 
+      getDatabaseStats, 
+      seedDatabase,
+      listProducts,
+      listAllSales
+    } from './db.js';
+    
+    window.dbFunctions = {
+      exportDatabase,
+      importDatabase,
+      clearDatabase,
+      getDatabaseStats,
+      seedDatabase,
+      listProducts,
+      listAllSales
+    };
+    
+    // Load stats on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStats();
+    });
+  </script>
+  
+  <script>
+    function showAlert(message, type = 'success') {
+      const resultDiv = document.getElementById('operation-result');
+      resultDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      setTimeout(() => {
+        resultDiv.innerHTML = '';
+      }, 5000);
+    }
+    
+    async function loadStats() {
+      try {
+        const stats = await window.dbFunctions.getDatabaseStats();
+        const html = `
+          <div class="stats-grid">
+            <div class="stat-box">
+              <h3>${stats.products.count}</h3>
+              <p>Products</p>
+            </div>
+            <div class="stat-box">
+              <h3>${stats.products.total_stock}</h3>
+              <p>Total Stock</p>
+            </div>
+            <div class="stat-box">
+              <h3>R${stats.products.total_value}</h3>
+              <p>Stock Value</p>
+            </div>
+            <div class="stat-box">
+              <h3>${stats.sales.count}</h3>
+              <p>Total Sales</p>
+            </div>
+            <div class="stat-box">
+              <h3>R${stats.sales.total_revenue}</h3>
+              <p>Revenue</p>
+            </div>
+            <div class="stat-box">
+              <h3>R${stats.sales.total_profit}</h3>
+              <p>Profit</p>
+            </div>
+          </div>
+          ${stats.products.low_stock_count > 0 ? `
+            <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 6px;">
+              <strong>⚠️ Low Stock Alert:</strong> ${stats.products.low_stock_count} items
+              <ul style="margin-top: 10px;">
+                ${stats.products.low_stock_items.map(item => `<li>${item.name}: ${item.quantity} left</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        `;
+        document.getElementById('stats-display').innerHTML = html;
+      } catch (error) {
+        showAlert('Error loading stats: ' + error.message, 'error');
+      }
+    }
+    
+    async function showDataFlow() {
+      try {
+        const stats = await window.dbFunctions.getDatabaseStats();
+        const html = `
+          <h3 style="margin-top: 20px;">📈 Sales by Date</h3>
+          <pre>${JSON.stringify(stats.sales.by_date, null, 2)}</pre>
+          <h3 style="margin-top: 20px;">📦 Low Stock Items</h3>
+          <pre>${JSON.stringify(stats.products.low_stock_items, null, 2)}</pre>
+        `;
+        document.getElementById('stats-display').innerHTML += html;
+      } catch (error) {
+        showAlert('Error showing data flow: ' + error.message, 'error');
+      }
+    }
+    
+    async function seedDB() {
+      if (!confirm('This will add sample products to the database. Continue?')) return;
+      try {
+        const result = await window.dbFunctions.seedDatabase();
+        showAlert(`✅ ${result.products_added} sample products added!`, 'success');
+        await loadStats();
+      } catch (error) {
+        showAlert('Error seeding database: ' + error.message, 'error');
+      }
+    }
+    
+    async function exportDB() {
+      try {
+        const data = await window.dbFunctions.exportDatabase();
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `spaza-db-export-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showAlert('✅ Database exported successfully!', 'success');
+      } catch (error) {
+        showAlert('Error exporting database: ' + error.message, 'error');
+      }
+    }
+    
+    function showImportUI() {
+      document.getElementById('import-ui').classList.toggle('hidden');
+    }
+    
+    async function importDB() {
+      const fileInput = document.getElementById('import-file');
+      const mergeMode = document.getElementById('merge-mode').checked;
+      
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showAlert('Please select a file to import', 'error');
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          const result = await window.dbFunctions.importDatabase(data, { merge: mergeMode });
+          showAlert(`✅ Imported ${result.imported_products} products and ${result.imported_sales} sales!`, 'success');
+          await loadStats();
+          document.getElementById('import-ui').classList.add('hidden');
+        } catch (error) {
+          showAlert('Error importing database: ' + error.message, 'error');
+        }
+      };
+      
+      reader.readAsText(file);
+    }
+    
+    async function clearDB() {
+      if (!confirm('⚠️ This will delete ALL data! Are you sure?')) return;
+      if (!confirm('Really? This cannot be undone!')) return;
+      try {
+        await window.dbFunctions.clearDatabase();
+        showAlert('✅ Database cleared!', 'success');
+        await loadStats();
+      } catch (error) {
+        showAlert('Error clearing database: ' + error.message, 'error');
+      }
+    }
+    
+    async function showProducts() {
+      try {
+        const products = await window.dbFunctions.listProducts();
+        document.getElementById('data-display').innerHTML = `
+          <h3 style="margin-top: 20px;">📦 Products (${products.length})</h3>
+          <pre>${JSON.stringify(products, null, 2)}</pre>
+        `;
+      } catch (error) {
+        showAlert('Error loading products: ' + error.message, 'error');
+      }
+    }
+    
+    async function showSales() {
+      try {
+        const sales = await window.dbFunctions.listAllSales();
+        document.getElementById('data-display').innerHTML = `
+          <h3 style="margin-top: 20px;">💰 Sales (${sales.length})</h3>
+          <pre>${JSON.stringify(sales, null, 2)}</pre>
+        `;
+      } catch (error) {
+        showAlert('Error loading sales: ' + error.message, 'error');
+      }
+    }
+    
+    async function showFullExport() {
+      try {
+        const data = await window.dbFunctions.exportDatabase();
+        document.getElementById('data-display').innerHTML = `
+          <h3 style="margin-top: 20px;">📋 Full Database Export</h3>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        showAlert('Error showing export: ' + error.message, 'error');
+      }
+    }
+    
+    window.loadStats = loadStats;
+    window.showDataFlow = showDataFlow;
+    window.seedDB = seedDB;
+    window.exportDB = exportDB;
+    window.showImportUI = showImportUI;
+    window.importDB = importDB;
+    window.clearDB = clearDB;
+    window.showProducts = showProducts;
+    window.showSales = showSales;
+    window.showFullExport = showFullExport;
+  </script>
+</body>
+</html>

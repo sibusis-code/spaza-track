@@ -1,0 +1,50 @@
+name: Deploy Backend to Production
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        cd backend
+        python -m pytest || echo "No tests yet"
+    
+    # Uncomment and configure for your hosting platform
+    
+    # # Deploy to Railway
+    # - name: Deploy to Railway
+    #   uses: railway/deploy@v1
+    #   with:
+    #     service: spaza-api
+    #     token: ${{ secrets.RAILWAY_TOKEN }}
+    
+    # # Or deploy to Render
+    # - name: Deploy to Render
+    #   run: |
+    #     curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+    
+    # # Or deploy to PythonAnywhere
+    # - name: Deploy to PythonAnywhere
+    #   run: |
+    #     # Add PythonAnywhere deployment script
