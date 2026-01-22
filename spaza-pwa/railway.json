@@ -1,0 +1,53 @@
+# Railway.app Deployment for Spaza Track
+
+This file helps Railway.app understand how to deploy the backend.
+
+## Configuration
+
+Railway will:
+1. Detect Python project
+2. Install `backend/requirements.txt`
+3. Start the backend with uvicorn
+4. Expose on port 8000
+
+The database (SQLite) will be stored in the server's filesystem.
+
+## Environment Variables to Set in Railway Dashboard
+
+```
+DATABASE_URL=sqlite:///./spaza.db
+SECRET_KEY=change-me-to-random-string-production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+CORS_ORIGINS=https://sibusis-code.github.io/spaza-track,http://localhost:8080
+```
+
+## Files Used
+
+- `backend/main.py` - Entry point
+- `backend/requirements.txt` - Python dependencies
+- `backend/database.py` - Database config
+- `backend/models.py` - Database models
+- `backend/schemas.py` - API schemas
+- `backend/auth.py` - Authentication
+- `.env` - Local config (not pushed)
+
+## First Deploy
+
+After Railway deploys:
+1. Go to Deployments tab
+2. Click "Terminal" in the running deployment
+3. Run: `python backend/create_admin.py`
+4. Test: `curl https://your-railway-url/api/health`
+
+## Manual Commands
+
+If you need to run things manually in Railway terminal:
+
+```bash
+# Create admin user
+python backend/create_admin.py
+
+# Check database
+python -c "from database import SessionLocal; from models import User; db = SessionLocal(); print(db.query(User).all())"
+```
