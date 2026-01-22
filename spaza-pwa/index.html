@@ -11,17 +11,40 @@
 <body>
   <div id="auth" class="screen">
     <h1>Spaza Track</h1>
-    <div id="pin-setup" class="card">
-      <h2>Set Admin PIN</h2>
-      <p>First-time setup: choose a 4–6 digit admin PIN.</p>
-      <input type="password" id="new-pin" inputmode="numeric" maxlength="6" placeholder="Enter admin PIN" />
-      <button id="set-pin-btn" class="primary">Set Admin PIN</button>
-    </div>
-    <div id="pin-unlock" class="card">
-      <h2>Unlock</h2>
-      <input type="password" id="pin" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
-      <button id="unlock-btn" class="primary">Unlock</button>
-      <p id="pin-error" class="error" aria-live="polite"></p>
+    <div class="card">
+      <div class="tabs auth-tabs">
+        <button class="tab-btn active" data-auth-tab="login">Login</button>
+        <button class="tab-btn" data-auth-tab="register">Register</button>
+      </div>
+      <div data-auth-panel="login">
+        <form id="login-form" class="stack">
+          <label>Username<input id="login-username" autocomplete="username" required /></label>
+          <label>Password<input id="login-password" type="password" autocomplete="current-password" required /></label>
+          <button class="primary" type="submit">Login</button>
+        </form>
+      </div>
+      <div data-auth-panel="register" class="hidden">
+        <form id="register-form" class="stack">
+          <label>Username<input id="reg-username" autocomplete="username" required /></label>
+          <label>Email<input id="reg-email" type="email" autocomplete="email" required /></label>
+          <label>Full Name<input id="reg-fullname" autocomplete="name" /></label>
+          <label>Password<input id="reg-password" type="password" autocomplete="new-password" required /></label>
+          <label>Role
+            <select id="register-role">
+              <option value="admin">Admin (creates shop)</option>
+              <option value="employee">Employee (joins shop)</option>
+            </select>
+          </label>
+          <div id="shop-name-row">
+            <label>Shop Name<input id="reg-shop-name" placeholder="e.g., Main Street" /></label>
+          </div>
+          <div id="shop-id-row" class="hidden">
+            <label>Shop ID or Name<input id="reg-shop-id" placeholder="Provided by admin" /></label>
+          </div>
+          <button class="primary" type="submit">Create Account</button>
+        </form>
+      </div>
+      <p id="auth-error" class="error" aria-live="polite"></p>
     </div>
   </div>
 
@@ -101,14 +124,6 @@
           <p id="stock-alerts" class="alert"></p>
           <button id="refresh-summary" class="secondary">Refresh</button>
         </div>
-        <div id="users-card" class="card hidden">
-          <h3>Manage Employees</h3>
-          <label>Employee Name<input type="text" id="emp-name" placeholder="e.g., John" /></label>
-          <label>Employee PIN<input type="password" id="emp-pin" inputmode="numeric" maxlength="6" placeholder="Enter 4–6 digit PIN" /></label>
-          <button id="add-emp-btn" class="secondary">Add Employee</button>
-          <p id="users-msg" aria-live="polite"></p>
-          <ul id="emp-list"></ul>
-        </div>
       </section>
     </main>
 
@@ -121,8 +136,8 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const swPath = window.location.pathname.includes('/spaza-track/') ? '/spaza-track/sw.js' : '/sw.js';
-        navigator.serviceWorker.register(swPath).catch(console.error);
+        const swUrl = new URL('sw.js', window.location.href);
+        navigator.serviceWorker.register(swUrl.href).catch(console.error);
       });
     }
   </script>

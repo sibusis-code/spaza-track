@@ -1,4 +1,5 @@
 // API Configuration
+// Update this if Railway gives you a different domain.
 const API_BASE_URL = 'https://spaza-track-production.up.railway.app/api';
 
 // Store token
@@ -40,10 +41,18 @@ async function apiRequest(endpoint, options = {}) {
 
 // ===== AUTH FUNCTIONS =====
 
-async function register(username, email, password, fullName, role = 'employee') {
+async function register(username, email, password, fullName, role = 'employee', shopName, shopId) {
   const data = await apiRequest('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, email, password, full_name: fullName, role })
+    body: JSON.stringify({
+      username,
+      email,
+      password,
+      full_name: fullName,
+      role,
+      shop_name: shopName,
+      shop_id: shopId
+    })
   });
   
   authToken = data.access_token;

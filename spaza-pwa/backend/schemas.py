@@ -2,15 +2,26 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 
+
+class Shop(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # User Schemas
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     full_name: Optional[str] = None
     role: str = "employee"
+    shop_id: Optional[int] = None  # Populated server-side for non-admin roles
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=4)
+    shop_name: Optional[str] = None  # For creating a new shop when registering an admin
 
 class UserLogin(BaseModel):
     username: str
@@ -20,6 +31,7 @@ class User(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+    shop_id: int
     
     class Config:
         from_attributes = True
@@ -44,6 +56,7 @@ class Product(ProductBase):
     created_by: Optional[int]
     created_at: datetime
     updated_at: Optional[datetime]
+    shop_id: int
     
     class Config:
         from_attributes = True
@@ -70,6 +83,7 @@ class Sale(BaseModel):
     employee_name: str
     sale_date: datetime
     date_key: str
+    shop_id: int
     
     class Config:
         from_attributes = True
@@ -81,6 +95,7 @@ class ActivityLog(BaseModel):
     action: str
     details: Optional[str]
     timestamp: datetime
+    shop_id: Optional[int]
     
     class Config:
         from_attributes = True

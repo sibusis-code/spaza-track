@@ -7,13 +7,14 @@ import os
 from dotenv import load_dotenv
 
 from database import get_db, init_db
-from models import User, Product, Sale, ActivityLog
+from models import User, Product, Sale, ActivityLog, Shop
 from schemas import (
     UserCreate, UserLogin, User as UserSchema, UserWithToken,
     ProductCreate, Product as ProductSchema, ProductUpdate,
     SaleCreate, Sale as SaleSchema,
     ActivityLog as ActivityLogSchema,
-    DashboardStats
+    DashboardStats,
+    Shop as ShopSchema
 )
 from auth import (
     get_password_hash, authenticate_user, create_access_token,
@@ -39,37 +40,70 @@ app.add_middleware(
 def startup_event():
     init_db()
 
-def log_activity(db: Session, user_id: int, action: str, details: str, ip: str = None):
+def log_activity(db: Session, user_id: int, action: str, details: str, ip: str = None, shop_id: int = None):
     """Helper to log user activity"""
     log = ActivityLog(
         user_id=user_id,
         action=action,
         details=details,
-        ip_address=ip
+        ip_address=ip,
+        shop_id=shop_id
     )
     db.add(log)
     db.commit()
+
+
+def ensure_shop(db: Session, shop_id: int) -> Shop:
+    shop = db.query(Shop).filter(Shop.id == shop_id).first()
+    if not shop:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    return shop
 
 # ===== AUTH ENDPOINTS =====
 
 @app.post("/api/auth/register", response_model=UserWithToken, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user"""
-    # Check if username exists
+    """Register a new user. Admins must provide shop_name to create the shop. Employees must provide an existing shop_id."""
+    # Check if username or email exists
     if db.query(User).filter(User.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already registered")
-    
-    # Check if email exists
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
+    # Resolve shop
+    shop_id: int
+    if user.role == "admin":
+        if not user.shop_name:
+            raise HTTPException(status_code=400, detail="shop_name is required for admin registration")
+        existing_shop = db.query(Shop).filter(Shop.name == user.shop_name).first()
+        if existing_shop:
+            raise HTTPException(status_code=400, detail="Shop name already in use")
+        new_shop = Shop(name=user.shop_name)
+        db.add(new_shop)
+        db.commit()
+        db.refresh(new_shop)
+        shop_id = new_shop.id
+    else:
+        # Employee can join by shop_id or shop_name
+        resolved_shop = None
+        if user.shop_id:
+            resolved_shop = ensure_shop(db, user.shop_id)
+        elif user.shop_name:
+            resolved_shop = db.query(Shop).filter(Shop.name == user.shop_name).first()
+            if not resolved_shop:
+                raise HTTPException(status_code=404, detail="Shop not found")
+        else:
+            raise HTTPException(status_code=400, detail="shop_id or shop_name is required for employee registration")
+        shop_id = resolved_shop.id
+
     # Create user
     db_user = User(
         username=user.username,
         email=user.email,
         full_name=user.full_name,
         hashed_password=get_password_hash(user.password),
-        role=user.role
+        role=user.role,
+        shop_id=shop_id,
     )
     db.add(db_user)
     db.commit()
@@ -79,7 +113,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.username})
     
     # Log activity
-    log_activity(db, db_user.id, "register", f"New user registered: {user.username}")
+    log_activity(db, db_user.id, "register", f"New user registered: {user.username}", shop_id=shop_id)
     
     return {
         "user": db_user,
@@ -106,7 +140,7 @@ def login(user_login: UserLogin, request: Request, db: Session = Depends(get_db)
     access_token = create_access_token(data={"sub": user.username})
     
     # Log activity
-    log_activity(db, user.id, "login", f"User logged in", request.client.host if request.client else None)
+    log_activity(db, user.id, "login", "User logged in", request.client.host if request.client else None, shop_id=user.shop_id)
     
     return {
         "user": user,
@@ -127,7 +161,7 @@ def list_products(
     current_user: User = Depends(get_current_user)
 ):
     """List all products"""
-    return db.query(Product).all()
+    return db.query(Product).filter(Product.shop_id == current_user.shop_id).all()
 
 @app.post("/api/products", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
 def create_product(
@@ -138,14 +172,15 @@ def create_product(
     """Create a new product"""
     db_product = Product(
         **product.model_dump(),
-        created_by=current_user.id
+        created_by=current_user.id,
+        shop_id=current_user.shop_id
     )
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
     
     # Log activity
-    log_activity(db, current_user.id, "add_product", f"Added product: {product.name}")
+    log_activity(db, current_user.id, "add_product", f"Added product: {product.name}", shop_id=current_user.shop_id)
     
     return db_product
 
@@ -157,7 +192,7 @@ def update_product_quantity(
     current_user: User = Depends(get_current_user)
 ):
     """Update product quantity"""
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(Product.id == product_id, Product.shop_id == current_user.shop_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
@@ -168,7 +203,7 @@ def update_product_quantity(
     
     # Log activity
     log_activity(db, current_user.id, "update_stock", 
-                 f"Updated {product.name} stock: {old_qty} → {product_update.quantity}")
+                 f"Updated {product.name} stock: {old_qty} → {product_update.quantity}", shop_id=current_user.shop_id)
     
     return product
 
@@ -179,7 +214,7 @@ def delete_product(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a product"""
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(Product.id == product_id, Product.shop_id == current_user.shop_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
@@ -188,7 +223,7 @@ def delete_product(
     db.commit()
     
     # Log activity
-    log_activity(db, current_user.id, "delete_product", f"Deleted product: {product_name}")
+    log_activity(db, current_user.id, "delete_product", f"Deleted product: {product_name}", shop_id=current_user.shop_id)
     
     return None
 
@@ -202,7 +237,10 @@ def record_sale(
 ):
     """Record a new sale"""
     # Get product
-    product = db.query(Product).filter(Product.id == sale.product_id).first()
+    product = db.query(Product).filter(
+        Product.id == sale.product_id,
+        Product.shop_id == current_user.shop_id
+    ).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
@@ -223,7 +261,8 @@ def record_sale(
         profit=profit,
         employee_id=current_user.id,
         employee_name=current_user.full_name or current_user.username,
-        date_key=datetime.now().strftime("%Y-%m-%d")
+        date_key=datetime.now().strftime("%Y-%m-%d"),
+        shop_id=current_user.shop_id
     )
     db.add(db_sale)
     
@@ -235,7 +274,7 @@ def record_sale(
     
     # Log activity
     log_activity(db, current_user.id, "record_sale", 
-                 f"Sold {sale.quantity_sold}x {product.name} (R{total_price:.2f})")
+                 f"Sold {sale.quantity_sold}x {product.name} (R{total_price:.2f})", shop_id=current_user.shop_id)
     
     return db_sale
 
@@ -246,7 +285,7 @@ def list_sales(
     current_user: User = Depends(get_current_user)
 ):
     """List sales, optionally filtered by date (YYYY-MM-DD)"""
-    query = db.query(Sale)
+    query = db.query(Sale).filter(Sale.shop_id == current_user.shop_id)
     if date:
         query = query.filter(Sale.date_key == date)
     return query.order_by(Sale.sale_date.desc()).all()
@@ -259,8 +298,8 @@ def get_stats(
     current_user: User = Depends(get_current_user)
 ):
     """Get dashboard statistics"""
-    products = db.query(Product).all()
-    sales = db.query(Sale).all()
+    products = db.query(Product).filter(Product.shop_id == current_user.shop_id).all()
+    sales = db.query(Sale).filter(Sale.shop_id == current_user.shop_id).all()
     
     total_stock = sum(p.quantity for p in products)
     stock_value = sum(p.quantity * p.cost_price for p in products)
@@ -268,7 +307,13 @@ def get_stats(
     total_profit = sum(s.profit for s in sales)
     low_stock = [{"name": p.name, "quantity": p.quantity} 
                  for p in products if p.quantity <= 3]
-    recent_sales = db.query(Sale).order_by(Sale.sale_date.desc()).limit(10).all()
+    recent_sales = (
+        db.query(Sale)
+        .filter(Sale.shop_id == current_user.shop_id)
+        .order_by(Sale.sale_date.desc())
+        .limit(10)
+        .all()
+    )
     
     return {
         "total_products": len(products),
@@ -290,7 +335,13 @@ def get_activity_logs(
     current_user: User = Depends(get_current_active_admin)
 ):
     """Get activity logs (admin only)"""
-    return db.query(ActivityLog).order_by(ActivityLog.timestamp.desc()).limit(limit).all()
+    return (
+        db.query(ActivityLog)
+        .filter(ActivityLog.shop_id == current_user.shop_id)
+        .order_by(ActivityLog.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
 
 # ===== HEALTH CHECK =====
 

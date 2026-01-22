@@ -3,6 +3,20 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
+
+class Shop(Base):
+    __tablename__ = "shops"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(120), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    users = relationship("User", back_populates="shop", cascade="all, delete")
+    products = relationship("Product", back_populates="shop", cascade="all, delete")
+    sales = relationship("Sale", back_populates="shop", cascade="all, delete")
+    activity_logs = relationship("ActivityLog", back_populates="shop", cascade="all, delete")
+
 class User(Base):
     __tablename__ = "users"
     
@@ -12,11 +26,13 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(100))
     role = Column(String(20), default="employee")  # admin, manager, employee
+    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
+    shop = relationship("Shop", back_populates="users")
     products = relationship("Product", back_populates="created_by_user")
     sales = relationship("Sale", back_populates="employee_user")
     activity_logs = relationship("ActivityLog", back_populates="user")
@@ -29,11 +45,13 @@ class Product(Base):
     cost_price = Column(Float, nullable=False)
     selling_price = Column(Float, nullable=False)
     quantity = Column(Integer, default=0)
+    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
+    shop = relationship("Shop", back_populates="products")
     created_by_user = relationship("User", back_populates="products")
     sales = relationship("Sale", back_populates="product")
 
@@ -42,6 +60,7 @@ class Sale(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
     product_name = Column(String(100))
     quantity_sold = Column(Integer, nullable=False)
     total_price = Column(Float, nullable=False)
@@ -52,6 +71,7 @@ class Sale(Base):
     date_key = Column(String(10), index=True)  # YYYY-MM-DD for queries
     
     # Relationships
+    shop = relationship("Shop", back_populates="sales")
     product = relationship("Product", back_populates="sales")
     employee_user = relationship("User", back_populates="sales")
 
@@ -60,10 +80,12 @@ class ActivityLog(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
     action = Column(String(50))  # login, logout, add_product, record_sale, etc.
     details = Column(String(500))
     ip_address = Column(String(50))
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
+    shop = relationship("Shop", back_populates="activity_logs")
     user = relationship("User", back_populates="activity_logs")

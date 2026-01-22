@@ -40,21 +40,24 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 CORS_ORIGINS=https://sibusis-code.github.io/spaza-track,http://localhost:8080
 ```
 
+> If you prefer Postgres or MySQL, set DATABASE_URL accordingly and apply migrations.
+
 5. Click "Update variables"
 6. Redeploy (click "Redeploy latest")
 
 ### Create Admin User
 
-1. In Railway, click your service
-2. Click **"Deployments"** tab
-3. Click the running deployment
-4. Click **"Terminal"**
-5. Run:
-```bash
-python backend/create_admin.py
+**Create Admin on Railway**
+
+Use the Railway CLI (recommended):
+```powershell
+npm install -g @railway/cli
+railway login
+railway link  # select spaza-track
+railway run python backend/create_admin.py
 ```
 
-You should see: ✅ Admin user created!
+If you prefer automation, add env var `CREATE_ADMIN_ON_STARTUP=true` and redeploy; startup will seed admin once.
 
 ### Get Your Backend URL
 
@@ -68,25 +71,9 @@ You should see: ✅ Admin user created!
 
 ## STEP 2: Update Frontend API URL
 
-1. Open your project in VS Code
-2. Find file: `api-client.js`
-3. Find this line (around line 2):
-```javascript
-const API_BASE_URL = 'http://localhost:8000/api';
-```
-
-4. Replace with your Railway URL:
-```javascript
-const API_BASE_URL = 'https://spaza-track-prod-abc123.railway.app/api';
-```
-
-5. Save the file
-6. Commit and push:
-```powershell
-git add api-client.js
-git commit -m "Update API URL to production Railway URL"
-git push origin master
-```
+1. Open `api-client.js`
+2. Set `API_BASE_URL` to your Railway domain, e.g. `https://spaza-track-prod-abc123.railway.app/api`
+3. Save, commit, and push.
 
 ---
 
@@ -128,7 +115,7 @@ CORS_ORIGINS=https://sibusis-code.github.io/spaza-track,http://localhost:8080
 
 Open in browser:
 ```
-https://spaza-track-prod-abc123.railway.app/api/health
+https://spaza-track-prod-abc123.rail   way.app/api/health
 ```
 
 Should return:

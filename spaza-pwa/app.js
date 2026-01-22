@@ -1,191 +1,199 @@
-import { addProduct, listProducts, deleteProduct, setProductQuantity, recordSale, listSalesForDate, getDailyProfit, lowStockAlerts } from './db.js';
+import {
+  login as apiLogin,
+  register as apiRegister,
+  logout as apiLogout,
+  getCurrentUser as apiGetCurrentUser,
+  getProducts,
+  createProduct,
+  updateProductQuantity,
+  deleteProduct,
+  recordSale,
+  getSales,
+  getStats,
+} from './api-client.js';
 
 const byId = (id) => document.getElementById(id);
-const fmtRand = (n) => (Number(n)||0).toFixed(2);
-const todayKey = () => new Date().toISOString().slice(0,10);
+const fmtRand = (n) => (Number(n) || 0).toFixed(2);
+const todayKey = () => new Date().toISOString().slice(0, 10);
 
-// Auth / PIN
-let currentRole = 'guest';
-let currentEmployeeName = '';
 let productFilterTerm = '';
 let productFilterTimer = null;
 let saleFilterTerm = '';
 let saleFilterTimer = null;
+let currentUser = null;
 
-function getEmployeePins() {
-  try { 
-    const data = JSON.parse(localStorage.getItem('employeePins') || '[]');
-    // Migrate old string-only format to {pin, name} format
-    return data.map(item => typeof item === 'string' ? {pin: item, name: item} : item);
-  } catch { return []; }
-}
-function saveEmployeePins(pins) { localStorage.setItem('employeePins', JSON.stringify(pins)); }
-
-function getEmployeePinStrings() {
-  return getEmployeePins().map(e => e.pin);
+// ----- Auth UI -----
+function setAuthVisible(showAuth) {
+  byId('auth').classList.toggle('hidden', !showAuth);
+  byId('app').classList.toggle('hidden', showAuth);
 }
 
-function getEmployeeNameByPin(pin) {
-  const emps = getEmployeePins();
-  const emp = emps.find(e => e.pin === pin);
-  return emp ? emp.name : 'Unknown';
+function showAuthError(msg) {
+  const el = byId('auth-error');
+  if (el) el.textContent = msg || '';
+}
+
+function toggleRoleFields(role) {
+  const shopNameRow = byId('shop-name-row');
+  const shopIdRow = byId('shop-id-row');
+  if (!shopNameRow || !shopIdRow) return;
+  const isAdmin = role === 'admin';
+  shopNameRow.classList.toggle('hidden', !isAdmin);
+  shopIdRow.classList.toggle('hidden', isAdmin);
+}
+
+function initAuthForms() {
+  const loginForm = byId('login-form');
+  const registerForm = byId('register-form');
+  const registerRole = byId('register-role');
+
+  toggleRoleFields(registerRole.value);
+  registerRole.addEventListener('change', () => toggleRoleFields(registerRole.value));
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    showAuthError('');
+    const username = byId('login-username').value.trim();
+    const password = byId('login-password').value.trim();
+    try {
+      const res = await apiLogin(username, password);
+      currentUser = res.user;
+      onAuthenticated();
+    } catch (err) {
+      showAuthError(err.message || 'Login failed');
+    }
+  });
+
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    showAuthError('');
+    const username = byId('reg-username').value.trim();
+    const email = byId('reg-email').value.trim();
+    const fullName = byId('reg-fullname').value.trim();
+    const password = byId('reg-password').value.trim();
+    const role = byId('register-role').value;
+    const shopName = byId('reg-shop-name').value.trim();
+    const shopJoin = byId('reg-shop-id').value.trim();
+    const joinAsNumber = Number(shopJoin);
+    const shopId = shopJoin !== '' && Number.isFinite(joinAsNumber) ? joinAsNumber : undefined;
+    const shopNameForEmployee = !Number.isFinite(joinAsNumber) && shopJoin ? shopJoin : undefined;
+    try {
+      const res = await apiRegister(
+        username,
+        email,
+        fullName,
+        password,
+        role,
+        role === 'admin' ? shopName || undefined : shopNameForEmployee,
+        role !== 'admin' ? shopId : undefined
+      );
+      currentUser = res.user;
+      onAuthenticated();
+    } catch (err) {
+      showAuthError(err.message || 'Registration failed');
+    }
+  });
+
+  document.querySelectorAll('[data-auth-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.authTab;
+      document.querySelectorAll('[data-auth-panel]').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.authPanel !== target);
+      });
+      document.querySelectorAll('[data-auth-tab]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
+function onAuthenticated() {
+  setAuthVisible(false);
+  configureUIForRole();
+  initApp();
 }
 
 function configureUIForRole() {
-  const isAdmin = currentRole === 'admin';
-  // Nav buttons
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  const isAdmin = currentUser?.role === 'admin';
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
     const tab = btn.dataset.tab;
     const allowed = isAdmin || tab === 'sales';
     btn.classList.toggle('hidden', !allowed);
   });
-  // Tabs visibility defaults
-  document.querySelectorAll('.tab').forEach(s => s.classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach((s) => s.classList.add('hidden'));
   if (isAdmin) {
     byId('tab-products').classList.remove('hidden');
   } else {
     byId('tab-sales').classList.remove('hidden');
   }
-  // Admin-only sections
-  const usersCard = document.getElementById('users-card');
-  if (usersCard) usersCard.classList.toggle('hidden', !isAdmin);
-  // Hide profit from employees
-  const profitHeader = document.getElementById('profit-header');
+  const profitHeader = byId('profit-header');
   if (profitHeader) profitHeader.classList.toggle('hidden', !isAdmin);
+  const addProductCard = byId('add-product-form');
+  if (addProductCard) addProductCard.classList.toggle('hidden', !isAdmin);
 }
 
-function initAuth() {
-  const adminPin = localStorage.getItem('adminPin');
-  const auth = byId('auth');
-  const app = byId('app');
-  const setup = byId('pin-setup');
-  const unlock = byId('pin-unlock');
-  const err = byId('pin-error');
-
-  if (!adminPin) {
-    setup.classList.remove('hidden');
-    unlock.classList.add('hidden');
-  } else {
-    setup.classList.add('hidden');
-    unlock.classList.remove('hidden');
-  }
-
-  byId('set-pin-btn').onclick = () => {
-    const pin = byId('new-pin').value.trim();
-    if (!pin || pin.length < 4 || pin.length > 6 || /\D/.test(pin)) {
-      err.textContent = 'PIN must be 4–6 digits';
-      return;
-    }
-    localStorage.setItem('adminPin', pin);
-    setup.classList.add('hidden');
-    unlock.classList.remove('hidden');
-    err.textContent = '';
-  };
-
-  let pinAttempts = 0;
-  byId('unlock-btn').onclick = () => {
-    pinAttempts++;
-    if (pinAttempts > 5) {
-      err.textContent = 'Too many attempts. Please try again later.';
-      byId('unlock-btn').disabled = true;
-      setTimeout(() => { byId('unlock-btn').disabled = false; pinAttempts = 0; }, 30000); // 30s lockout
-      return;
-    }
-    const pin = byId('pin').value.trim();
-    const adminPinNow = localStorage.getItem('adminPin');
-    const empPinStrings = getEmployeePinStrings();
-    if (pin === adminPinNow) {
-      currentRole = 'admin';
-      currentEmployeeName = 'Admin';
-      auth.classList.add('hidden');
-      app.classList.remove('hidden');
-      initApp();
-      configureUIForRole();
-      pinAttempts = 0;
-    } else if (empPinStrings.includes(pin)) {
-      currentRole = 'employee';
-      currentEmployeeName = getEmployeeNameByPin(pin);
-      auth.classList.add('hidden');
-      app.classList.remove('hidden');
-      initApp();
-      configureUIForRole();
-      pinAttempts = 0;
-    } else {
-      err.textContent = `Incorrect PIN (attempt ${pinAttempts}/5)`;
-    }
-  };
-
-  byId('lock-btn').onclick = () => {
-    app.classList.add('hidden');
-    auth.classList.remove('hidden');
-    byId('pin').value = '';
-    err.textContent = '';
-    currentRole = 'guest';
-    currentEmployeeName = '';
-  };
-}
-
-// Tabs
+// ----- Tabs -----
 function initTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
-      const isAdmin = currentRole === 'admin';
-      if (!isAdmin && tab !== 'sales') return; // guard
-      document.querySelectorAll('.tab').forEach(s => s.classList.add('hidden'));
+      const isAdmin = currentUser?.role === 'admin';
+      if (!isAdmin && tab !== 'sales') return;
+      document.querySelectorAll('.tab').forEach((s) => s.classList.add('hidden'));
       byId(`tab-${tab}`).classList.remove('hidden');
       if (tab === 'products') renderProducts();
-      if (tab === 'sales') { renderProductsForSale(); renderTodaySales(); }
-      if (tab === 'summary') { renderSummary(); renderEmployeeList(); }
+      if (tab === 'sales') {
+        renderProductsForSale();
+        renderTodaySales();
+      }
+      if (tab === 'summary') {
+        renderSummary();
+      }
     });
   });
 }
 
-// Products UI
+// ----- Products UI -----
 async function renderProducts() {
-  const products = await listProducts();
+  const products = await getProducts();
   const tbody = byId('products-tbody');
   tbody.innerHTML = '';
   const term = productFilterTerm.trim().toLowerCase();
   const sorted = products
-    .filter(p => !term || p.name.toLowerCase().includes(term))
+    .filter((p) => !term || p.name.toLowerCase().includes(term))
     .sort((a, b) => a.name.localeCompare(b.name));
-  sorted.forEach(p => {
+  sorted.forEach((p) => {
     const tr = document.createElement('tr');
-    const nameCell = document.createElement('td');
-    nameCell.textContent = p.name; // Prevent XSS
-    const costCell = document.createElement('td');
-    costCell.textContent = `R${fmtRand(p.cost_price)}`;
-    const sellCell = document.createElement('td');
-    sellCell.textContent = `R${fmtRand(p.selling_price)}`;
-    const qtyCell = document.createElement('td');
-    qtyCell.textContent = p.quantity;
-    const actCell = document.createElement('td');
-    actCell.innerHTML = `<div class="inline-actions"><input class="restock-input" type="number" min="1" max="999" value="1" data-restock-input="${p.id}"><button class="secondary" data-restock="${p.id}">+ Add</button><button class="secondary" data-del="${p.id}">Delete</button></div>`;
-    tr.appendChild(nameCell);
-    tr.appendChild(costCell);
-    tr.appendChild(sellCell);
-    tr.appendChild(qtyCell);
-    tr.appendChild(actCell);
+    tr.innerHTML = `
+      <td>${p.name}</td>
+      <td>R${fmtRand(p.cost_price)}</td>
+      <td>R${fmtRand(p.selling_price)}</td>
+      <td>${p.quantity}</td>
+      <td>
+        <div class="inline-actions">
+          <input class="restock-input" type="number" min="1" max="999" value="1" data-restock-input="${p.id}">
+          <button class="secondary" data-restock="${p.id}">+ Add</button>
+          <button class="secondary" data-del="${p.id}">Delete</button>
+        </div>
+      </td>`;
     tbody.appendChild(tr);
   });
-  // Restock handlers (inline, no modal)
-  tbody.querySelectorAll('[data-restock]').forEach(btn => {
+
+  tbody.querySelectorAll('[data-restock]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const productId = Number(btn.getAttribute('data-restock'));
       const input = tbody.querySelector(`[data-restock-input="${productId}"]`);
       const addQty = Number(input.value);
       if (addQty <= 0) return;
-      const product = products.find(p => p.id === productId);
+      const product = products.find((p) => p.id === productId);
       if (product) {
-        await setProductQuantity(product.id, product.quantity + addQty);
+        await updateProductQuantity(product.id, product.quantity + addQty);
         renderProducts();
         renderProductsForSale();
       }
     });
   });
-  // Delete handlers
-  tbody.querySelectorAll('[data-del]').forEach(btn => {
+
+  tbody.querySelectorAll('[data-del]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       await deleteProduct(btn.getAttribute('data-del'));
       renderProducts();
@@ -195,15 +203,15 @@ async function renderProducts() {
 }
 
 async function renderProductsForSale() {
-  const products = await listProducts();
+  const products = await getProducts();
   const sel = byId('sale-product');
   const prev = sel.value;
   sel.innerHTML = '';
   const term = saleFilterTerm.trim().toLowerCase();
   const sorted = [...products]
-    .filter(p => !term || p.name.toLowerCase().includes(term))
+    .filter((p) => !term || p.name.toLowerCase().includes(term))
     .sort((a, b) => a.name.localeCompare(b.name));
-  sorted.forEach(p => {
+  sorted.forEach((p) => {
     const opt = document.createElement('option');
     opt.value = p.id;
     opt.textContent = `${p.name} (qty ${p.quantity})`;
@@ -215,15 +223,16 @@ async function renderProductsForSale() {
 }
 
 function initProductForm() {
-  byId('add-product-form').addEventListener('submit', async (e) => {
+  const form = byId('add-product-form');
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = byId('p-name').value;
     const cost_price = byId('p-cost').value;
     const selling_price = byId('p-sell').value;
     const quantity = byId('p-qty').value;
     if (!name || !cost_price || !selling_price || quantity === '') return;
-    await addProduct({ name, cost_price, selling_price, quantity });
-    e.target.reset();
+    await createProduct(name, Number(cost_price), Number(selling_price), Number(quantity));
+    form.reset();
     renderProducts();
     renderProductsForSale();
   });
@@ -239,7 +248,7 @@ function initProductFilter() {
       productFilterTerm = value;
       renderProducts();
       renderProductsForSale();
-    }, 120); // small debounce for fast typing
+    }, 120);
   });
 }
 
@@ -256,14 +265,14 @@ function initSaleFilter() {
   });
 }
 
-// Sales UI
+// ----- Sales UI -----
 function initSalesForm() {
   byId('sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const productId = byId('sale-product').value;
     const qty = byId('sale-qty').value;
     try {
-      const sale = await recordSale(productId, qty, currentEmployeeName);
+      await recordSale(productId, Number(qty));
       byId('sale-qty').value = '';
       renderProductsForSale();
       renderTodaySales();
@@ -275,110 +284,36 @@ function initSalesForm() {
 }
 
 async function renderTodaySales() {
-  const sales = await listSalesForDate(todayKey());
+  const sales = await getSales(todayKey());
   const tbody = byId('sales-tbody');
-  const isAdmin = currentRole === 'admin';
+  const isAdmin = currentUser?.role === 'admin';
   tbody.innerHTML = '';
-  sales.forEach(s => {
+  sales.forEach((s) => {
     const tr = document.createElement('tr');
-    const sellerCell = document.createElement('td');
-    sellerCell.textContent = s.employee_name || 'Unknown'; // Prevent XSS
-    const itemCell = document.createElement('td');
-    itemCell.textContent = s.name; // Prevent XSS
-    const qtyCell = document.createElement('td');
-    qtyCell.textContent = s.quantity_sold;
-    const totalCell = document.createElement('td');
-    totalCell.textContent = `R${fmtRand(s.total_price)}`;
-    const profitCell = document.createElement('td');
-    if (!isAdmin) profitCell.style.display = 'none';
-    profitCell.textContent = `R${fmtRand(s.profit)}`;
-    tr.appendChild(sellerCell);
-    tr.appendChild(itemCell);
-    tr.appendChild(qtyCell);
-    tr.appendChild(totalCell);
-    tr.appendChild(profitCell);
+    tr.innerHTML = `
+      <td>${s.employee_name || 'Unknown'}</td>
+      <td>${s.product_name}</td>
+      <td>${s.quantity_sold}</td>
+      <td>R${fmtRand(s.total_price)}</td>
+      <td class="${isAdmin ? '' : 'hidden'}">R${fmtRand(s.profit)}</td>`;
     tbody.appendChild(tr);
   });
 }
 
-// Summary
+// ----- Summary -----
 async function renderSummary() {
-  const profit = await getDailyProfit(todayKey());
-  byId('today-profit').textContent = `Today’s Profit: R${fmtRand(profit)}`;
-  const alerts = await lowStockAlerts();
-  byId('stock-alerts').textContent = alerts.length ? (`Low stock: ${alerts.join(', ')}`) : '';
+  const todaySales = await getSales(todayKey());
+  const todayProfit = todaySales.reduce((sum, s) => sum + (s.profit || 0), 0);
+  byId('today-profit').textContent = `Today’s Profit: R${fmtRand(todayProfit)}`;
+  const stats = await getStats();
+  const alerts = (stats.low_stock_items || []).map((i) => `${i.name} (${i.quantity})`);
+  byId('stock-alerts').textContent = alerts.length ? `Low stock: ${alerts.join(', ')}` : '';
 }
 
-function renderEmployeeList() {
-  const list = byId('emp-list');
-  if (!list) return;
-  const pins = getEmployeePins();
-  list.innerHTML = '';
-  pins.forEach((emp, idx) => {
-    const li = document.createElement('li');
-    const empObj = typeof emp === 'string' ? {pin: emp, name: emp} : emp;
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = `${empObj.name} (PIN: ${empObj.pin})`; // Prevent XSS
-    const delBtn = document.createElement('button');
-    delBtn.className = 'del-emp';
-    delBtn.setAttribute('data-idx', idx);
-    delBtn.style.cssText = 'font-size:12px; padding: 4px 8px; margin-left: 8px;';
-    delBtn.textContent = 'Remove';
-    li.appendChild(nameSpan);
-    li.appendChild(delBtn);
-    list.appendChild(li);
-  });
-  document.querySelectorAll('.del-emp').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = Number(btn.getAttribute('data-idx'));
-      pins.splice(idx, 1);
-      saveEmployeePins(pins);
-      renderEmployeeList();
-    });
-  });
-}
-
-function initSummary() {
-  byId('refresh-summary').onclick = () => { renderSummary(); renderEmployeeList(); };
-  const addBtn = byId('add-emp-btn');
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      const name = byId('emp-name').value.trim();
-      const pin = byId('emp-pin').value.trim();
-      const err = byId('users-msg');
-      if (!name) {
-        err.textContent = 'Employee name is required';
-        return;
-      }
-      if (!pin || pin.length < 4 || pin.length > 6 || /\D/.test(pin)) {
-        err.textContent = 'Employee PIN must be 4–6 digits';
-        return;
-      }
-      const adminPinNow = localStorage.getItem('adminPin');
-      if (pin === adminPinNow) {
-        err.textContent = 'Employee PIN cannot be the same as admin PIN';
-        return;
-      }
-      const pins = getEmployeePins();
-      if (!pins.find(e => e.pin === pin)) {
-        pins.push({pin, name});
-        saveEmployeePins(pins);
-        byId('emp-name').value = '';
-        byId('emp-pin').value = '';
-        err.textContent = 'Employee added';
-        renderEmployeeList();
-      } else {
-        err.textContent = 'PIN already exists';
-      }
-    });
-  }
-}
-
-// Bootstrap
+// ----- Bootstrap -----
 let appInitialized = false;
 
 function initApp() {
-  // If already initialized, just refresh views to avoid duplicate bindings
   if (appInitialized) {
     renderProducts();
     renderProductsForSale();
@@ -387,17 +322,39 @@ function initApp() {
     return;
   }
   appInitialized = true;
-  
   initTabs();
   initProductForm();
   initProductFilter();
   initSaleFilter();
   initSalesForm();
-  initSummary();
   renderProducts();
   renderProductsForSale();
   renderTodaySales();
   renderSummary();
+  byId('lock-btn').onclick = () => {
+    apiLogout();
+    currentUser = null;
+    setAuthVisible(true);
+  };
 }
 
-initAuth();
+async function bootstrap() {
+  initAuthForms();
+  try {
+    const me = await apiGetCurrentUser();
+    if (me) {
+      currentUser = me;
+      onAuthenticated();
+      return;
+    }
+  } catch {
+    // ignore, show auth
+  }
+  setAuthVisible(true);
+}
+
+bootstrap();
+
+git add DEPLOY_NOW.md api-client.js app.js backend/create_admin.py backend/main.py backend/models.py backend/schemas.py index.html 404.html requirements.txt
+git commit -m "Deploy: multi-tenant auth, API URL, deps, docs"
+git push origin master
