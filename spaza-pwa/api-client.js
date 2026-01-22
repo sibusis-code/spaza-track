@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'https://spaza-track-production.up.railway.app/api';
 
 // Store token
 let authToken = localStorage.getItem('spaza_token');
