@@ -1,0 +1,63 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  userType: String!
+  phoneNumber: String
+  photoUrl: String
+}
+
+type Shop @table {
+  name: String!
+  address: String!
+  latitude: Float!
+  longitude: Float!
+  createdAt: Timestamp!
+  operatingHours: String!
+  description: String
+  phoneNumber: String
+  photoUrl: String
+  vendor: User!
+}
+
+type Product @table {
+  name: String!
+  price: Float!
+  stockQuantity: Int!
+  createdAt: Timestamp!
+  description: String
+  category: String
+  photoUrl: String
+  shop: Shop!
+}
+
+type Order @table {
+  orderDate: Timestamp!
+  totalAmount: Float!
+  status: String!
+  orderType: String!
+  createdAt: Timestamp!
+  deliveryAddress: String
+  deliveryFee: Float
+  customer: User!
+  shop: Shop!
+}
+
+type OrderItem @table(key: ["order", "product"]) {
+  quantity: Int!
+  priceAtTimeOfOrder: Float!
+  order: Order!
+  product: Product!
+}
+
+type Promotion @table {
+  name: String!
+  discountPercentage: Float
+  fixedDiscountAmount: Float
+  startDate: Timestamp!
+  endDate: Timestamp!
+  createdAt: Timestamp!
+  description: String
+  minimumOrderAmount: Float
+  shop: Shop!
+}

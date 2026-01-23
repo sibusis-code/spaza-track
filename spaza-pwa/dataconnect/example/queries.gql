@@ -1,0 +1,34 @@
+mutation CreateShop @auth(level: USER) {
+  shop_insert(data: {
+    vendorId_expr: "auth.uid",
+    address: "123 Main Street",
+    name: "New Shop",
+    latitude: 34.0522,
+    longitude: -118.2437,
+    operatingHours: "9am-5pm",
+    createdAt_expr: "request.time"
+  })
+}
+
+query ListProducts @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  products {
+    id
+    name
+    description
+    price
+  }
+}
+
+mutation UpdateProduct($id: UUID!, $price: Float) @auth(level: USER) {
+  product_update(key: {id: $id}, data: {
+    price: $price
+  })
+}
+
+query ListShopsForUser @auth(level: USER) {
+  shops(where: {vendorId: {eq_expr: "auth.uid"}}) {
+    id
+    name
+    address
+  }
+}
