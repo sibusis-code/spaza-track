@@ -1,0 +1,9 @@
+.venv/
+.vscode/
+.git/
+*.db
+__pycache__/
+*.pyc
+.env
+node_modules/
+DEPLOYMENT_SUMMARY_FOR_YOU.txt

@@ -355,6 +355,3 @@ async function bootstrap() {
 
 bootstrap();
 
-git add DEPLOY_NOW.md api-client.js app.js backend/create_admin.py backend/main.py backend/models.py backend/schemas.py index.html 404.html requirements.txt
-git commit -m "Deploy: multi-tenant auth, API URL, deps, docs"
-git push origin master
